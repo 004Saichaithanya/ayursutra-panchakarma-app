@@ -135,6 +135,7 @@ export function AyurvedaChatbot({ isVisible = true }) {
       const botMessage = {
         id: (Date.now() + 1).toString(),
         text: data.response,
+        formatted_html: data.formatted_html, // New field for HTML content
         sender: 'bot',
         timestamp: new Date(),
         sources: data.sources || [],
@@ -307,9 +308,11 @@ export function AyurvedaChatbot({ isVisible = true }) {
                     <div className="space-y-4">
                       {messages.map((message) => (
                         <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] rounded-lg p-3 ${
+                          <div className={`max-w-[85%] rounded-lg p-3 ${
                             message.sender === 'user'
                               ? 'bg-emerald-600 text-white'
+                              : message.formatted_html
+                              ? 'bg-white border border-gray-200 text-gray-900' // Special styling for HTML responses
                               : 'bg-gray-100 text-gray-900'
                           }`}>
                             <div className="flex items-start space-x-2 mb-2">
@@ -324,7 +327,19 @@ export function AyurvedaChatbot({ isVisible = true }) {
                                 </div>
                               )}
                               <div className="flex-1">
-                                <p className="text-sm whitespace-pre-line">{message.text}</p>
+                                {/* Display HTML content for bot messages if available, otherwise plain text */}
+                                {message.sender === 'bot' && message.formatted_html ? (
+                                  <div 
+                                    className="text-sm ayurveda-response"
+                                    dangerouslySetInnerHTML={{ __html: message.formatted_html }}
+                                    style={{
+                                      color: 'inherit',
+                                      lineHeight: '1.6'
+                                    }}
+                                  />
+                                ) : (
+                                  <p className="text-sm whitespace-pre-line">{message.text}</p>
+                                )}
                                 <p className={`text-xs mt-1 ${
                                   message.sender === 'user' ? 'text-emerald-200' : 'text-gray-500'
                                 }`}>
