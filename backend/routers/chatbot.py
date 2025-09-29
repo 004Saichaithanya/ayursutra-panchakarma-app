@@ -21,7 +21,7 @@ def get_gemini_client():
     """Get or initialize Gemini client"""
     global client
     if client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(
                 status_code=503, 
@@ -451,7 +451,7 @@ async def chat_with_ayurbot(request: ChatRequest):
     """
     try:
         # Check if API key is available
-        if not os.environ.get("GEMINI_API_KEY"):
+        if not os.environ.get("GOOGLE_API_KEY"):
             raise HTTPException(
                 status_code=503, 
                 detail="AI service temporarily unavailable. Please contact support."
@@ -486,6 +486,6 @@ async def chatbot_health():
     return {
         "status": "healthy",
         "knowledge_base_entries": len(AYURVEDIC_KNOWLEDGE),
-        "api_key_configured": bool(os.environ.get("GEMINI_API_KEY"))
+        "api_key_configured": bool(os.environ.get("GOOGLE_API_KEY"))
     }
 
