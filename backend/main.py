@@ -15,20 +15,26 @@ app = FastAPI(
 import os
 
 # Configure CORS origins based on environment
+replit_domain = os.getenv("REPLIT_DEV_DOMAIN", "")
+if replit_domain:
+    replit_url = f"https://{replit_domain}"
+else:
+    replit_url = "https://c9b910bf-f922-4822-91d5-2d0f6de2f827-00-pb7zjmom23o0.pike.replit.dev"
+
 if os.getenv("ENVIRONMENT", "development") == "production":
     # Production: Use specific domains
     origins = [
-        "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev",
+        replit_url,
         os.getenv("FRONTEND_URL", "")
     ]
     allow_credentials = True
 else:
-    # Development: Allow localhost variants but not wildcard with credentials
+    # Development: Allow localhost variants and current Replit domain
     origins = [
         "http://localhost:3000",
         "http://localhost:5173", 
         "http://localhost:5000",
-        "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev"
+        replit_url
     ]
     allow_credentials = False
 
