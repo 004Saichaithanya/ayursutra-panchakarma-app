@@ -1,18 +1,5 @@
 # 🌿 AyurSutra – Panchakarma Patient Management System
 
----
-
-## ⚠️ Important Disclaimer
-
-🚧 **Testing Purpose Only** 🚧
-
-* All **secret keys**, `.env` files, and **Firebase credentials** are intentionally exposed in this project.
-* This repository is meant **only for internal testing & learning purposes**.
-* 🔒 Please **do not share outside our team**.
-* For production, ensure secrets are properly secured and never committed.
-
----
-
 Welcome to **AyurSutra**, a full-stack web application designed to help patients manage their **Panchakarma therapy sessions** with ease.
 
 Patients can:
