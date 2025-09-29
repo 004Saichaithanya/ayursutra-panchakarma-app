@@ -106,17 +106,35 @@ export function Login() {
   const getErrorMessage = (errorCode) => {
     switch (errorCode) {
       case 'auth/user-not-found':
-        return 'No account found with this email address.';
+        return 'No account found with this email address. Please check your email or create a new account.';
       case 'auth/wrong-password':
-        return 'Incorrect password.';
+        return 'Incorrect password. Please try again or use "Forgot your password?" to reset it.';
+      case 'auth/invalid-credential':
+        return 'Invalid login credentials. Please check your email and password and try again.';
       case 'auth/email-already-in-use':
-        return 'An account with this email already exists.';
+        return 'An account with this email already exists. Please sign in instead or use a different email.';
       case 'auth/weak-password':
-        return 'Password should be at least 6 characters.';
+        return 'Password must be at least 6 characters long. Please choose a stronger password.';
       case 'auth/invalid-email':
-        return 'Please enter a valid email address.';
+        return 'Please enter a valid email address (e.g., user@example.com).';
+      case 'auth/too-many-requests':
+        return 'Too many failed login attempts. Please wait a few minutes before trying again.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
+      case 'auth/requires-recent-login':
+        return 'For security reasons, please sign in again to complete this action.';
+      case 'auth/account-exists-with-different-credential':
+        return 'An account already exists with this email but using a different sign-in method.';
+      case 'auth/invalid-verification-code':
+        return 'Invalid verification code. Please check the code and try again.';
+      case 'auth/missing-email':
+        return 'Email address is required. Please enter your email address.';
+      case 'auth/missing-password':
+        return 'Password is required. Please enter your password.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled. Please contact support for assistance.';
       default:
-        return 'An error occurred. Please try again.';
+        return 'Unable to complete the request. Please check your credentials and try again.';
     }
   };
 
