@@ -1,0 +1,200 @@
+import datetime
+from IPython.display import display, HTML, Markdown
+
+# Updated Function: display_diagnosis with Emojis and separate Medicines section
+
+def display_diagnosis(diagnosis):
+    """
+    Displays the Ayurvedic diagnosis results in a visually appealing HTML format
+    with integrated emojis, separating Herbs and Ayurvedic Medicines/Formulations.
+
+    Args:
+        diagnosis (dict): A dictionary containing the diagnosis results.
+    """
+    # --- Input Validation ---
+    if not isinstance(diagnosis, dict):
+        display(Markdown(f"""
+        <div style="border: 2px solid orange; padding: 15px; background-color: #fff8e1; color: #6f4f00;">
+            <h2><span style="color:orange;">🤔</span> Input Error</h2>
+            <p><strong>Details:</strong> The provided diagnosis input is not a valid dictionary.</p>
+            <pre style="white-space: pre-wrap; word-wrap: break-word;">Input Type: {type(diagnosis)}</pre>
+        </div>
+        """))
+        return
+
+    # --- Error Handling ---
+    if "error" in diagnosis:
+        error_message = diagnosis.get('raw_response', diagnosis['error'])
+        display(Markdown(f"""
+        <div style="border: 2px solid red; padding: 15px; background-color: #fff0f0; color: #a00;">
+            <h2><span style="color:red;">⚠️</span> Error in Diagnosis Generation</h2>
+            <p><strong>Details:</strong> {diagnosis['error']}</p>
+            <hr>
+            <strong>Raw Response (if available):</strong>
+            <pre style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">{error_message}</pre>
+        </div>
+        """))
+        return
+
+    # --- Date Setup ---
+    try:
+        current_date = datetime.date.today().strftime("%B %d, %Y")
+    except Exception:
+        current_date = "N/A"
+
+    # --- HTML Structure Start ---
+    html = f"""
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 10px auto; padding: 25px; border: 1px solid #ccc; border-radius: 10px; background-color: #fdfdfd; box-shadow: 0 5px 15px rgba(0,0,0,0.08);">
+        <h2 style="color: #3a5a40; border-bottom: 2px solid #588157; padding-bottom: 10px; text-align: center; margin-bottom: 25px;">🩺 Ayurvedic Diagnosis Report 🩺</h2>
+
+        <!-- Primary Assessment Section -->
+        <div style="margin-bottom: 25px; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #588157;">
+            <h3 style="color: #4a6b51; margin-top: 0; margin-bottom: 15px;">⚖️ Primary Assessment</h3>
+            <p style="margin-bottom: 8px;"><strong>👤 Dominant Dosha:</strong> <span style="font-size: 1.1em; font-weight: bold; color: #3a5a40;">{diagnosis.get('dominant_dosha', 'N/A')}</span></p>
+            <p style="margin-bottom: 15px;"><strong>📋 Provisional Diagnosis:</strong> <span style="font-size: 1.1em;">{diagnosis.get('diagnosis', 'N/A')}</span></p>
+
+            <h4 style="color: #4a6b51; margin-bottom: 10px;">⚠️ Identified Imbalances:</h4>
+            <ul style="list-style: none; padding-left: 5px;">
+    """ # --- Imbalances ---
+    imbalances = diagnosis.get('imbalances', [])
+    if imbalances:
+        for imbalance in imbalances:
+
+            html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #e67e22;'>➡</span>{imbalance}</li>"
+    else:
+        html += "<li style='color: #777; font-style: italic;'>No specific imbalances listed.</li>"
+    html += """
+            </ul>
+        </div>
+
+        <!-- Supporting Evidence Section -->
+        <div style="margin-bottom: 25px; background-color: #e8f5e9; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #a5d6a7;">
+            <h3 style="color: #2e7d32; margin-top: 0; margin-bottom: 15px;">🔍 Supporting Evidence</h3>
+    """ # --- Evidence ---
+    evidence_map = diagnosis.get('supporting_evidence', {})
+    displayed_evidence = False
+    symptoms_list = []
+    # Consolidate all symptom matching keys
+    for key in evidence_map.keys():
+        if 'symptoms_matching' in key:
+            items = evidence_map.get(key, [])
+            if isinstance(items, list):
+                symptoms_list.extend(items)
+            elif items:
+                 symptoms_list.append(str(items))
+
+    symptoms_list = sorted(list(set(symptoms_list)))
+
+    if symptoms_list:
+         displayed_evidence = True
+         # Use f-string for consistency
+         html += f"<h4 style='color: #2e7d32; margin-bottom: 10px;'>✅ Symptoms Matching Dosha:</h4>"
+         html += "<ul style='list-style-type: disc; padding-left: 25px; margin-bottom: 15px;'>"
+         for item in symptoms_list:
+             html += f"<li style='margin-bottom: 4px;'>{item}</li>"
+         html += "</ul>"
+
+    pulse_indication = evidence_map.get('pulse_indication')
+    if pulse_indication:
+         displayed_evidence = True
+         html += f"<h4 style='color: #2e7d32; margin-bottom: 5px;'>💓 Pulse Indication:</h4>"
+         html += f"<p style='margin-left: 10px; margin-bottom: 15px;'>{pulse_indication}</p>" # f-string interpolation works here
+
+    tongue_indication = evidence_map.get('tongue_indication')
+    if tongue_indication:
+         displayed_evidence = True
+         html += f"<h4 style='color: #2e7d32; margin-bottom: 5px;'>👅 Tongue Indication:</h4>"
+         html += f"<p style='margin-left: 10px; margin-bottom: 15px;'>{tongue_indication}</p>" # f-string interpolation works here
+
+    processed_keys = [k for k in evidence_map.keys() if 'symptoms_matching' in k] + ['pulse_indication', 'tongue_indication']
+    other_keys = sorted([k for k in evidence_map.keys() if k not in processed_keys and evidence_map[k]])
+
+    if other_keys:
+        displayed_evidence = True
+        html += f"<h4 style='color: #2e7d32; margin-bottom: 10px;'>❓ Other Indicators:</h4>"
+        for key in other_keys:
+             value = evidence_map[key]
+             # Use f-string for consistency
+             html += f"<p style='margin-left: 10px; margin-bottom: 10px;'><strong>{key.replace('_', ' ').title()}:</strong> "
+             if isinstance(value, list):
+                  html += ", ".join(map(str, value))
+             else:
+                  html += str(value)
+             html += "</p>"
+
+    if not displayed_evidence:
+         html += "<p style='color: #777; font-style: italic;'>No specific supporting evidence provided.</p>"
+    html += """
+        </div>
+
+        <!-- Recommended Treatments Section -->
+        <div style="margin-bottom: 25px; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #81c784;">
+            <h3 style="color: #3a5a40; margin-top: 0; margin-bottom: 15px;">🌱 Recommended Treatments</h3>
+    """ # --- Treatments ---
+    treatments = diagnosis.get('recommended_treatments', {})
+    displayed_treatments = False
+    treatment_categories = {
+        'dietary': {'emoji': '🍴', 'list_style': '🥗', 'title': 'Dietary Recommendations'},
+        'herbs': {'emoji': '🌿', 'list_style': '🌿', 'title': 'Herbal Suggestions (Single Herbs)'},
+        'ayurvedic_medicines': {'emoji': '💊', 'list_style': '💊', 'title': 'Ayurvedic Medicines/Formulations'},
+        'therapies': {'emoji': '👐', 'list_style': '✨', 'title': 'Recommended Therapies'},
+        'lifestyle': {'emoji': '❤️', 'list_style': '🚶', 'title': 'Lifestyle Adjustments'}
+    }
+    known_keys_ordered = ['dietary', 'herbs', 'ayurvedic_medicines', 'therapies', 'lifestyle']
+
+    for key in known_keys_ordered:
+        config = treatment_categories.get(key)
+        if key in treatments and treatments[key] and config:
+            items = treatments[key]
+            if not isinstance(items, list):
+                items = [items]
+
+            if items:
+                displayed_treatments = True
+                # Use f-string for consistency
+                html += f"<h4 style='color: #4a6b51; margin-bottom: 10px;'>{config['emoji']} {config['title']}:</h4>"
+                html += f"<ul style='list-style: none; padding-left: 5px; margin-bottom: 15px;'>"
+                list_emoji = config['list_style']
+                for rec in items:
+                    # Use f-string for consistency
+                    html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #4caf50;'>{list_emoji}</span>{rec}</li>"
+                html += "</ul>"
+
+    other_treatment_keys = sorted([k for k in treatments.keys() if k not in treatment_categories and treatments[k]])
+    if other_treatment_keys:
+        displayed_treatments = True
+        html += f"<h4 style='color: #4a6b51; margin-bottom: 10px;'>➕ Other Recommendations:</h4>"
+        for key in other_treatment_keys:
+             items = treatments[key]
+             if not isinstance(items, list):
+                 items = [items]
+
+             if items:
+                 # Use f-string for consistency
+                 html += f"<p style='margin-left: 10px; margin-bottom: 5px;'><strong>{key.replace('_', ' ').title()}:</strong></p>"
+                 html += "<ul style='list-style: none; padding-left: 5px; margin-bottom: 15px;'>"
+                 for rec in items:
+                      # Use f-string for consistency
+                      html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #4caf50;'>✔️</span>{rec}</li>"
+                 html += "</ul>"
+
+    if not displayed_treatments:
+        html += "<p style='color: #777; font-style: italic;'>No specific treatment recommendations provided.</p>"
+    # The footer section is now inside the f-string, so {current_date} will be replaced
+    html += f"""
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 30px; font-size: 0.9em; color: #888; border-top: 1px solid #eee; padding-top: 15px;">
+            <p style="margin-bottom: 5px;">🤖 Generated by Ayurvedic Diagnostic Assistant</p>
+            <p style="margin-bottom: 5px;">Made with ❤️ in India 🇮🇳</p>
+            <p>📅 Date: {current_date}</p>
+            <p style="margin-top: 10px; font-size: 0.85em; font-style: italic;">Reminder: This is an AI-generated analysis for informational purposes. Always consult a qualified Ayurvedic practitioner for professional medical advice.</p>
+        </div>
+    </div>
+    """ # --- HTML End ---
+
+    # Display the final HTML
+    display(HTML(html))
+
+print('display function updated .....')

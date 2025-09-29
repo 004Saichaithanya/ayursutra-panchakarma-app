@@ -1,0 +1,838 @@
+
+
+    import numpy as np # linear algebra
+    import pandas as pd # data processing
+    import datetime # Added for current date display
+    import os
+    from tqdm.notebook import tqdm # Imported tqdm for notebooks
+
+     
+    input_dir = '/kaggle/input'
+    print(f"Checking files in {input_dir}...") 
+
+    # Counting the total number of files to set up the progress bar
+    total_files = 0
+    try:
+        for _, _, filenames in os.walk(input_dir):
+            total_files += len(filenames)
+    except FileNotFoundError:
+        print(f"Warning: Input directory '{input_dir}' not found. Skipping file check.")
+        total_files = 0
+
+    # Iterating again just to update the progress bar
+    if total_files > 0:
+        print(f"Processing {total_files} files (progress bar below):")
+        # Use tqdm context manager for automatic closing
+        with tqdm(total=total_files, desc="Checking Input Files", unit="file") as pbar:
+            for dirname, _, filenames in os.walk(input_dir):
+                for filename in filenames:
+                
+                    pbar.update(1) # Increment progress bar for each file
+        print("\nFile check complete.") # Confirmation message after the loop
+    else:
+        print("No files found or directory doesn't exist.")
+
+    Checking files in /kaggle/input...
+    Processing 2175 files (progress bar below):
+
+    {"model_id":"bb4bb7d67cfa499481715fda384f6c90","version_major":2,"version_minor":0}
+
+
+    File check complete.
+
+    import json
+    import re
+    import warnings
+    import google.generativeai as genai
+    from IPython.display import display, Markdown, HTML
+    from sklearn.metrics.pairwise import cosine_similarity
+
+    warnings.filterwarnings('ignore')
+
+    print("Setting up the environment (other libraries)...")
+
+    Setting up the environment (other libraries)...
+
+    try:
+        # For Kaggle environment
+        from kaggle_secrets import UserSecretsClient
+        user_secrets = UserSecretsClient()
+        GOOGLE_API_KEY = user_secrets.get_secret("GOOGLE_API_KEY")
+    except:
+        # Fallback for local testing
+        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+    # Configuring the Gemini API
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+    # Selecting Gemini 2.0 Flash model
+    model = genai.GenerativeModel('models/gemini-2.0-flash-exp')
+    print("API configured and model selected: gemini-2.0-flash-exp")
+
+    from google import genai
+    from google.genai import types
+    from kaggle_secrets import UserSecretsClient
+
+    user_secrets = UserSecretsClient()
+    GOOGLE_API_KEY = user_secrets.get_secret("GOOGLE_API_KEY")
+    client = genai.Client(api_key=GOOGLE_API_KEY)
+
+    MODEL_ID = "models/gemini-2.0-flash-exp"
+
+    # Generate content
+    response = client.models.generate_content(
+        model=MODEL_ID,
+        contents="What's the largest planet in our solar system?"
+    )
+
+    API configured and model selected: gemini-2.0-flash-exp
+
+    def process_ayurveda_texts(data_input_dir='/kaggle/input/ayurveda-texts-english'): # Default path
+        print(f"Processing Ayurveda texts from {data_input_dir}...")
+        texts = []
+
+        # Check if the dataset directory exists
+        if not os.path.exists(data_input_dir):
+             print(f"Error: Dataset directory not found at {data_input_dir}.")
+             print("Please ensure the 'rcratos/ayurveda-texts-english' dataset is added to the notebook via '+ Add Data'.")
+             return [] # Return empty list if directory is missing
+
+        # Walk through all files in the data directory
+        for root, dirs, files in os.walk(data_input_dir):
+            # Skip hidden directories/files if necessary (e.g., .ipynb_checkpoints)
+            files = [f for f in files if not f.startswith('.')]
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+
+            for file in files:
+                if file.endswith('.txt'):
+                    file_path = os.path.join(root, file)
+                    try:
+                        relative_path = os.path.relpath(root, data_input_dir)
+                        category = os.path.basename(relative_path) if relative_path != '.' else 'root' # Use 'root' or similar if files are directly in the main folder
+                        text_name = os.path.splitext(file)[0]
+
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+
+                        # Simple split into paragraphs or large chunks
+                        chunks = [para for para in content.split('\n\n') if len(para.split()) > 30] # Example: split by double newline, min 30 words
+
+                        if not chunks or len(chunks) == 1: # Fallback if paragraph split fails or yields one huge chunk
+                             words = content.split()
+                             chunk_size = 500 # Adjust chunk size as needed
+                             chunks = [' '.join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+
+                        for i, chunk in enumerate(chunks):
+                             if len(chunk.strip()) > 10: # Ensure chunk is not just whitespace
+                                texts.append({
+                                    "id": f"{text_name}-chunk-{i}",
+                                    "content": chunk.strip(),
+                                    "metadata": {
+                                        "source": text_name,
+                                        "category": category,
+                                        "file_path": os.path.basename(file_path) # Add original filename for reference
+                                    }
+                                })
+                    except Exception as e:
+                        print(f"Error processing file {file_path}: {e}")
+
+        if not texts:
+            print(f"Warning: No text chunks were processed from {data_input_dir}. Check file structure and content.")
+            # Fallback will be triggered later if needed
+
+        print(f"Processed {len(texts)} text chunks from the Ayurveda dataset.")
+        return texts
+
+    # Process the dataset directly
+    try:
+        # Make sure the dataset is attached via Kaggle UI first!
+        AYURVEDA_DATASET_PATH = '/kaggle/input/ayurveda-texts-english' # Or the specific path shown in /kaggle/input
+        ayurvedic_texts = process_ayurveda_texts(AYURVEDA_DATASET_PATH)
+
+        if not ayurvedic_texts: # Check if processing yielded any texts
+             print("Processing completed but no texts were extracted. Falling back to sample texts.")
+             raise ValueError("No texts extracted from input directory") # Force fallback
+
+    except Exception as e:
+        print(f"Error processing dataset from input directory: {e}")
+        print("Falling back to sample Ayurvedic texts...")
+        # Provide sample texts in case of issues (Keep your fallback list here)
+        ayurvedic_texts = [
+            {
+                "id": "sample-vata-1",
+                "content": "Vata dosha governs movement in the body, including blood circulation, breathing, blinking, and heartbeat. Characteristics include dryness, coldness, lightness, and irregularity. Imbalance often manifests as anxiety, insomnia, dry skin, constipation, and joint pain. Balancing Vata involves warmth, routine, grounding activities, and nourishing foods.",
+                "metadata": {"source": "Sample Knowledge", "category": "Doshas"}
+            },
+            {
+                "id": "sample-pitta-1",
+                "content": "Pitta dosha controls digestion, metabolism, and energy production. Its qualities are hot, sharp, light, and oily. Pitta individuals often have strong digestion and intellect but can be prone to anger, inflammation, heartburn, and skin rashes when imbalanced. Cooling foods, moderation, and avoiding excess heat help balance Pitta.",
+                "metadata": {"source": "Sample Knowledge", "category": "Doshas"}
+            },
+            {
+                "id": "sample-kapha-1",
+                "content": "Kapha dosha provides structure, lubrication, and stability. It is characterized by heaviness, coldness, slowness, and oiliness. Balanced Kapha brings strength and calmness. Imbalance can lead to lethargy, weight gain, congestion, and possessiveness. Stimulation, exercise, warmth, and light foods are key to balancing Kapha.",
+                "metadata": {"source": "Sample Knowledge", "category": "Doshas"}
+            },
+             {
+                "id": "sample-treatment-1",
+                "content": "Abhyanga, or self-massage with warm oil, is highly recommended for Vata imbalance. It pacifies dryness, improves circulation, calms the nerves, and promotes better sleep. Sesame oil is traditionally used. Swedana (steam therapy) often follows Abhyanga to help the oil penetrate deeper.",
+                "metadata": {"source": "Sample Knowledge", "category": "Treatments"}
+            }
+        ]
+        print(f"Using {len(ayurvedic_texts)} sample text chunks.")
+
+    # Ensuring we have texts before proceeding
+    if not ayurvedic_texts:
+         print("CRITICAL ERROR: No Ayurvedic texts available (processing failed and fallback is empty). RAG will not function correctly.")
+
+    Processing Ayurveda texts from /kaggle/input/ayurveda-texts-english...
+    Processed 38978 text chunks from the Ayurveda dataset.
+
+    import os
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+    !pip install -q faiss-cpu sentence-transformers
+    !pip install -q langchain langchain-community langchain-huggingface
+    !pip install -q huggingface_hub[hf_xet]
+
+    from langchain_community.vectorstores import FAISS 
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from tqdm.notebook import tqdm
+    from langchain.schema import Document
+    import os
+    import math
+
+    print("Initializing HuggingFace embedding model...")
+    model_name = 'all-MiniLM-L6-v2'
+    model_kwargs = {'device': 'cuda'}
+    encode_kwargs = {'normalize_embeddings': False} 
+    local_embeddings = HuggingFaceEmbeddings(
+        model_name=model_name,
+        model_kwargs=model_kwargs,
+        encode_kwargs=encode_kwargs
+    )
+    print(f"HuggingFace embedding model '{model_name}' loaded, configured for GPU usage.")
+
+    # Assuming 'ayurvedic_texts' is ready from Step 3
+    if not ayurvedic_texts:
+        print("Error: ayurvedic_texts list is empty. Cannot build vector database.")
+        vector_db = None
+        retriever = None
+    else:
+        # Prepare documents
+        langchain_docs = []
+        print(f"Preparing {len(ayurvedic_texts)} text chunks for LangChain...")
+        for text_chunk in tqdm(ayurvedic_texts, desc="Preparing Docs"):
+            content = str(text_chunk.get('content', ''))
+            metadata = text_chunk.get('metadata', {})
+            if not isinstance(metadata, dict):
+                 metadata = {'original_metadata': str(metadata)}
+            doc = Document(page_content=content, metadata=metadata)
+            langchain_docs.append(doc)
+
+        print(f"Generating embeddings (on GPU) and building FAISS index (on CPU) for {len(langchain_docs)} documents in batches...")
+        try:
+            batch_size = 1000 # Adjust based on GPU memory for embedding
+            num_docs = len(langchain_docs)
+            num_batches = math.ceil(num_docs / batch_size)
+            vector_db = None
+
+            print(f"Processing in {num_batches} batches of size {batch_size}...")
+            for i in tqdm(range(0, num_docs, batch_size), desc="Building FAISS Index", total=num_batches):
+                batch_docs = langchain_docs[i : min(i + batch_size, num_docs)]
+                if not batch_docs: continue
+
+                if vector_db is None:
+                    # Embedding happens on GPU here via local_embeddings
+                    vector_db = FAISS.from_documents(batch_docs, local_embeddings)
+                else:
+                    # Embedding happens on GPU here via local_embeddings
+                    vector_db.add_documents(batch_docs)
+
+            if vector_db is not None:
+                 print("\nFAISS index built successfully in batches.")
+                
+                 retriever = vector_db.as_retriever(search_kwargs={'k': 5})
+                 print("Retriever created.")
+            else:
+                 print("\nFAISS index could not be initialized.")
+                 retriever = None
+
+        except Exception as e:
+            print(f"\nError building FAISS index during batch processing: {e}")
+            import traceback
+            traceback.print_exc()
+            print("RAG functionality will be impaired.")
+            vector_db = None
+            retriever = None
+
+    Initializing HuggingFace embedding model...
+    HuggingFace embedding model 'all-MiniLM-L6-v2' loaded, configured for GPU usage.
+    Preparing 38978 text chunks for LangChain...
+
+    {"model_id":"21f5d7a56c5c4656ac50327ff534944b","version_major":2,"version_minor":0}
+
+    Generating embeddings (on GPU) and building FAISS index (on CPU) for 38978 documents in batches...
+    Processing in 39 batches of size 1000...
+
+    {"model_id":"cb1e5a5cc84e42199342c1700bde0ab3","version_major":2,"version_minor":0}
+
+
+    FAISS index built successfully in batches.
+    Retriever created.
+
+    few_shot_examples = """
+    Example 1:
+    Patient Symptoms: "I've been experiencing joint pain that worsens in cold weather, cracking sounds in my knees, constipation, and anxiety. I have trouble sleeping and my skin is very dry."
+    Ayurvedic Analysis:
+    {
+      "dominant_dosha": "Vata",
+      "imbalances": ["Vata excess in joints (Sandhi Vata)", "Vata affecting colon (Kostha Vata)", "Vata affecting nervous system (Majja Dhatu)"],
+      "diagnosis": "Sandhigata Vata (Osteoarthritis with Vata predominance) with associated Anidra (Insomnia) and Kostha Baddhata (Constipation)",
+      "supporting_evidence": {
+        "symptoms_matching_vata": ["joint pain worse in cold", "cracking sounds (Vata in joints)", "constipation", "anxiety", "insomnia", "dry skin"],
+        "pulse_indication": "Likely irregular, thready, feeble (Vata pulse)",
+        "tongue_indication": "Likely dry, rough, possibly cracked, maybe a brownish coating"
+      },
+      "recommended_treatments": {
+        "dietary": ["Warm, cooked, unctuous foods", "Favor sweet, sour, and salty tastes", "Include ghee and healthy oils", "Avoid cold, dry, light foods", "Warm water/herbal teas"],
+        "herbs": ["Ashwagandha (Withania somnifera) - for strength and stress", "Guggulu (Commiphora wightii) - specific for joints", "Shallaki (Boswellia serrata) - for joint inflammation", "Haritaki (Terminalia chebula) - for constipation"],
+        "ayurvedic_medicines": ["Yogaraj Guggulu or Mahayogaraj Guggulu - classical formulation for joints", "Mahanarayan Oil - for external massage on joints", "Ashwagandharishta - for nerve strength and stress", "Castor oil (Eranda Taila) - gentle purgative for Vata constipation (use cautiously)"],
+        "therapies": ["Abhyanga (regular warm oil massage)", "Swedana (steam therapy, especially Nadi Sweda for joints)", "Basti (medicated enema, particularly Anuvasana or Matra Basti with appropriate oils)"],
+        "lifestyle": ["Maintain regular daily routine (Dinacharya)", "Keep warm, avoid cold drafts", "Gentle, grounding yoga and stretching", "Pranayama (e.g., Nadi Shodhana)", "Meditation for anxiety"]
+      }
+    }
+
+    Example 2:
+    Patient Symptoms: "I frequently get heartburn and acid reflux, especially after eating spicy foods. I have a reddish complexion, feel hot often, and get irritated easily. I also have some skin rashes that worsen when I'm stressed."
+    Ayurvedic Analysis:
+    {
+      "dominant_dosha": "Pitta",
+      "imbalances": ["Pitta excess in digestive tract (Annavaha Srotas)", "Pitta affecting skin (Rakta Dhatu, Bhrajaka Pitta)", "Pitta affecting mind (Sadhaka Pitta)"],
+      "diagnosis": "Amlapitta (Hyperacidity/GERD) with associated Raktaja Kustha (Pitta-type skin issues)",
+      "supporting_evidence": {
+        "symptoms_matching_pitta": ["heartburn", "acid reflux (sour/bitter taste)", "reddish complexion", "feeling hot", "irritability/anger", "skin rashes worsened by stress/heat"],
+        "pulse_indication": "Likely moderate strength, sharp, jumping (Pitta pulse)",
+        "tongue_indication": "Likely reddish tongue body, possibly with a yellowish coating"
+      },
+      "recommended_treatments": {
+        "dietary": ["Cooling foods and drinks", "Favor sweet, bitter, and astringent tastes", "Avoid spicy, sour, salty, fermented foods", "Avoid alcohol, caffeine, excessive fried food", "Regular meal times, avoid skipping meals"],
+        "herbs": ["Amalaki (Emblica officinalis) - cooling, Vit C rich, balances Pitta", "Guduchi (Tinospora cordifolia) - immunomodulator, Pitta-shamaka", "Shatavari (Asparagus racemosus) - cooling, soothing for GI tract", "Yashtimadhu (Glycyrrhiza glabra) - demulcent for GI lining (use cautiously if BP issues)", "Neem (Azadirachta indica) - bitter, for skin issues"],
+        "ayurvedic_medicines": ["Avipattikar Churna - classical formula for hyperacidity", "Kamadudha Rasa (with Mukta) - cooling antacid formulation", "Chandanasava - cooling formulation, helpful for burning sensations", "Sutshekhar Rasa - often used for Pitta conditions including GI issues"],
+        "therapies": ["Virechana (therapeutic purgation) - primary Pitta detoxification (under guidance)", "Cooling oil application (e.g., Chandanadi Taila, Coconut oil)", "Shirodhara with cooling liquids (e.g., milk, buttermilk)"],
+        "lifestyle": ["Avoid excessive heat and sun exposure", "Moderate exercise, avoid overheating", "Practice stress-reducing techniques (meditation, calming pranayama like Sheetali)", "Spend time in nature, near water", "Moonlight walks"]
+      }
+    }
+    """
+    print('process completed.....')
+
+    process completed.....
+
+    if 'retriever' not in globals() or retriever is None:
+        print("Warning: Retriever is not available. RAG search will be skipped.")
+
+        class DummyRetriever:
+            def get_relevant_documents(self, query):
+                print("Dummy retriever used: No documents retrieved.")
+                return []
+        retriever = DummyRetriever()
+
+
+    def generate_ayurvedic_diagnosis(patient_symptoms):
+
+        print(f"Searching for documents relevant to: {patient_symptoms[:100]}...") 
+        try:
+            #relevant_docs = retriever.get_relevant_documents(patient_symptoms)
+            relevant_docs = retriever.invoke(patient_symptoms)
+            print(f"Retrieved {len(relevant_docs)} documents.")
+        except Exception as e:
+            print(f"Error during document retrieval: {e}")
+            relevant_docs = []
+
+        # Extract the content from search results
+        context_docs = []
+        if relevant_docs:
+            for i, doc in enumerate(relevant_docs):
+                source = doc.metadata.get('source', 'Unknown')
+                # Include similarity score if retriever provides it (FAISS retriever usually doesn't directly)
+                # We'll omit similarity here as it's not standard from basic FAISS retriever
+                context_docs.append(f"--- Relevant Document {i+1} ---\\nSource: {source}\\nContent: {doc.page_content}\\n--- End Document {i+1} ---")
+            context = "\\n\\n".join(context_docs)
+        else:
+            context = "No specific documents found in the knowledge base for these symptoms."
+            print("No relevant documents found, proceeding without specific context.")
+
+        # Create the prompt with few-shot examples and retrieved context
+        prompt = f"""You are an expert Ayurvedic physician with decades of experience.
+    Analyze the patient's symptoms based on Ayurvedic principles (Tridosha theory - Vata, Pitta, Kapha).
+    Use the following retrieved Ayurvedic knowledge ONLY IF RELEVANT to supplement your analysis. If no specific context is found or it seems irrelevant, rely on your general Ayurvedic expertise.
+
+    ### Retrieved Context (Use if relevant):
+    {context}
+    ### End Context
+
+    Here are examples of how to structure your analysis in JSON format:
+
+    {few_shot_examples}
+
+    Now, analyze the following patient symptoms and provide a structured Ayurvedic diagnosis in the **exact same JSON format** as the examples. Focus on identifying the dominant dosha, imbalances, providing a likely diagnosis (Prakriti/Vikriti), and recommending treatments based ONLY on the provided symptoms and general Ayurvedic principles, referencing the context only if truly applicable. **Ensure treatments distinguish between single 'herbs' and classical 'ayurvedic_medicines' as shown in the examples.**
+
+    Patient Symptoms: "{patient_symptoms}"
+
+    Ayurvedic Analysis (JSON Output Only):
+    ```json
+    """ # Added ```json hint for the model
+
+        print("Generating diagnosis with Gemini...")
+        # Generate the diagnosis using Gemini 2.0 Flash
+        try:
+            response = model.generate_content(
+                prompt,
+                generation_config={"temperature": 0.2, "response_mime_type": "application/json"} # Request JSON output
+                # Note: gemini-2.0-flash might not fully support response_mime_type yet. Fallback parsing needed.
+            )
+
+            # Attempt to parse JSON directly first (if model respects mime type)
+            try:
+                diagnosis_json = json.loads(response.text)
+                print("Successfully parsed JSON response directly.")
+                return diagnosis_json
+            except (json.JSONDecodeError, TypeError):
+                 print("Direct JSON parsing failed, attempting regex extraction...")
+                 # Fallback to regex extraction if direct parsing fails or mime type not supported
+                 diagnosis_text = response.text
+                 # Improved regex to find JSON block, potentially within backticks
+                 json_match = re.search(r'```json\\s*(\\{.*?\\})\\s*```', diagnosis_text, re.DOTALL | re.IGNORECASE)
+                 if not json_match:
+                     json_match = re.search(r'(\\{.*?\\})', diagnosis_text, re.DOTALL) # Broader search
+
+                 if json_match:
+                     json_str = json_match.group(1)
+                     try:
+                         diagnosis_json = json.loads(json_str)
+                         print("Successfully parsed JSON using regex fallback.")
+                         return diagnosis_json
+                     except json.JSONDecodeError as json_e:
+                         print(f"JSONDecodeError after regex extraction: {json_e}")
+                         return {"error": "Could not parse the diagnosis as JSON", "raw_response": diagnosis_text}
+                 else:
+                     print("No JSON block found using regex.")
+                     return {"error": "No JSON found in the response", "raw_response": diagnosis_text}
+
+        except Exception as e:
+            print(f"Error during Gemini API call: {e}")
+            # Extract more details if possible from the exception object
+            error_details = str(e)
+            # Check for specific Google API error types if needed
+            return {"error": f"Failed to generate response from AI model: {error_details}", "raw_response": ""}
+
+    print('diagnostic function ready.....')
+
+    diagnostic function ready.....
+
+    import datetime
+    from IPython.display import display, HTML, Markdown
+
+    # Updated Function: display_diagnosis with Emojis and separate Medicines section
+
+    def display_diagnosis(diagnosis):
+        """
+        Displays the Ayurvedic diagnosis results in a visually appealing HTML format
+        with integrated emojis, separating Herbs and Ayurvedic Medicines/Formulations.
+
+        Args:
+            diagnosis (dict): A dictionary containing the diagnosis results.
+        """
+        # --- Input Validation ---
+        if not isinstance(diagnosis, dict):
+            display(Markdown(f"""
+            <div style="border: 2px solid orange; padding: 15px; background-color: #fff8e1; color: #6f4f00;">
+                <h2><span style="color:orange;">🤔</span> Input Error</h2>
+                <p><strong>Details:</strong> The provided diagnosis input is not a valid dictionary.</p>
+                <pre style="white-space: pre-wrap; word-wrap: break-word;">Input Type: {type(diagnosis)}</pre>
+            </div>
+            """))
+            return
+
+        # --- Error Handling ---
+        if "error" in diagnosis:
+            error_message = diagnosis.get('raw_response', diagnosis['error'])
+            display(Markdown(f"""
+            <div style="border: 2px solid red; padding: 15px; background-color: #fff0f0; color: #a00;">
+                <h2><span style="color:red;">⚠️</span> Error in Diagnosis Generation</h2>
+                <p><strong>Details:</strong> {diagnosis['error']}</p>
+                <hr>
+                <strong>Raw Response (if available):</strong>
+                <pre style="white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto;">{error_message}</pre>
+            </div>
+            """))
+            return
+
+        # --- Date Setup ---
+        try:
+            current_date = datetime.date.today().strftime("%B %d, %Y")
+        except Exception:
+            current_date = "N/A"
+
+        # --- HTML Structure Start ---
+        html = f"""
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 10px auto; padding: 25px; border: 1px solid #ccc; border-radius: 10px; background-color: #fdfdfd; box-shadow: 0 5px 15px rgba(0,0,0,0.08);">
+            <h2 style="color: #3a5a40; border-bottom: 2px solid #588157; padding-bottom: 10px; text-align: center; margin-bottom: 25px;">🩺 Ayurvedic Diagnosis Report 🩺</h2>
+
+            <!-- Primary Assessment Section -->
+            <div style="margin-bottom: 25px; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #588157;">
+                <h3 style="color: #4a6b51; margin-top: 0; margin-bottom: 15px;">⚖️ Primary Assessment</h3>
+                <p style="margin-bottom: 8px;"><strong>👤 Dominant Dosha:</strong> <span style="font-size: 1.1em; font-weight: bold; color: #3a5a40;">{diagnosis.get('dominant_dosha', 'N/A')}</span></p>
+                <p style="margin-bottom: 15px;"><strong>📋 Provisional Diagnosis:</strong> <span style="font-size: 1.1em;">{diagnosis.get('diagnosis', 'N/A')}</span></p>
+
+                <h4 style="color: #4a6b51; margin-bottom: 10px;">⚠️ Identified Imbalances:</h4>
+                <ul style="list-style: none; padding-left: 5px;">
+        """ # --- Imbalances ---
+        imbalances = diagnosis.get('imbalances', [])
+        if imbalances:
+            for imbalance in imbalances:
+
+                html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #e67e22;'>➡</span>{imbalance}</li>"
+        else:
+            html += "<li style='color: #777; font-style: italic;'>No specific imbalances listed.</li>"
+        html += """
+                </ul>
+            </div>
+
+            <!-- Supporting Evidence Section -->
+            <div style="margin-bottom: 25px; background-color: #e8f5e9; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #a5d6a7;">
+                <h3 style="color: #2e7d32; margin-top: 0; margin-bottom: 15px;">🔍 Supporting Evidence</h3>
+        """ # --- Evidence ---
+        evidence_map = diagnosis.get('supporting_evidence', {})
+        displayed_evidence = False
+        symptoms_list = []
+        # Consolidate all symptom matching keys
+        for key in evidence_map.keys():
+            if 'symptoms_matching' in key:
+                items = evidence_map.get(key, [])
+                if isinstance(items, list):
+                    symptoms_list.extend(items)
+                elif items:
+                     symptoms_list.append(str(items))
+
+        symptoms_list = sorted(list(set(symptoms_list)))
+
+        if symptoms_list:
+             displayed_evidence = True
+             # Use f-string for consistency
+             html += f"<h4 style='color: #2e7d32; margin-bottom: 10px;'>✅ Symptoms Matching Dosha:</h4>"
+             html += "<ul style='list-style-type: disc; padding-left: 25px; margin-bottom: 15px;'>"
+             for item in symptoms_list:
+                 html += f"<li style='margin-bottom: 4px;'>{item}</li>"
+             html += "</ul>"
+
+        pulse_indication = evidence_map.get('pulse_indication')
+        if pulse_indication:
+             displayed_evidence = True
+             html += f"<h4 style='color: #2e7d32; margin-bottom: 5px;'>💓 Pulse Indication:</h4>"
+             html += f"<p style='margin-left: 10px; margin-bottom: 15px;'>{pulse_indication}</p>" # f-string interpolation works here
+
+        tongue_indication = evidence_map.get('tongue_indication')
+        if tongue_indication:
+             displayed_evidence = True
+             html += f"<h4 style='color: #2e7d32; margin-bottom: 5px;'>👅 Tongue Indication:</h4>"
+             html += f"<p style='margin-left: 10px; margin-bottom: 15px;'>{tongue_indication}</p>" # f-string interpolation works here
+
+        processed_keys = [k for k in evidence_map.keys() if 'symptoms_matching' in k] + ['pulse_indication', 'tongue_indication']
+        other_keys = sorted([k for k in evidence_map.keys() if k not in processed_keys and evidence_map[k]])
+
+        if other_keys:
+            displayed_evidence = True
+            html += f"<h4 style='color: #2e7d32; margin-bottom: 10px;'>❓ Other Indicators:</h4>"
+            for key in other_keys:
+                 value = evidence_map[key]
+                 # Use f-string for consistency
+                 html += f"<p style='margin-left: 10px; margin-bottom: 10px;'><strong>{key.replace('_', ' ').title()}:</strong> "
+                 if isinstance(value, list):
+                      html += ", ".join(map(str, value))
+                 else:
+                      html += str(value)
+                 html += "</p>"
+
+        if not displayed_evidence:
+             html += "<p style='color: #777; font-style: italic;'>No specific supporting evidence provided.</p>"
+        html += """
+            </div>
+
+            <!-- Recommended Treatments Section -->
+            <div style="margin-bottom: 25px; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #81c784;">
+                <h3 style="color: #3a5a40; margin-top: 0; margin-bottom: 15px;">🌱 Recommended Treatments</h3>
+        """ # --- Treatments ---
+        treatments = diagnosis.get('recommended_treatments', {})
+        displayed_treatments = False
+        treatment_categories = {
+            'dietary': {'emoji': '🍴', 'list_style': '🥗', 'title': 'Dietary Recommendations'},
+            'herbs': {'emoji': '🌿', 'list_style': '🌿', 'title': 'Herbal Suggestions (Single Herbs)'},
+            'ayurvedic_medicines': {'emoji': '💊', 'list_style': '💊', 'title': 'Ayurvedic Medicines/Formulations'},
+            'therapies': {'emoji': '👐', 'list_style': '✨', 'title': 'Recommended Therapies'},
+            'lifestyle': {'emoji': '❤️', 'list_style': '🚶', 'title': 'Lifestyle Adjustments'}
+        }
+        known_keys_ordered = ['dietary', 'herbs', 'ayurvedic_medicines', 'therapies', 'lifestyle']
+
+        for key in known_keys_ordered:
+            config = treatment_categories.get(key)
+            if key in treatments and treatments[key] and config:
+                items = treatments[key]
+                if not isinstance(items, list):
+                    items = [items]
+
+                if items:
+                    displayed_treatments = True
+                    # Use f-string for consistency
+                    html += f"<h4 style='color: #4a6b51; margin-bottom: 10px;'>{config['emoji']} {config['title']}:</h4>"
+                    html += f"<ul style='list-style: none; padding-left: 5px; margin-bottom: 15px;'>"
+                    list_emoji = config['list_style']
+                    for rec in items:
+                        # Use f-string for consistency
+                        html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #4caf50;'>{list_emoji}</span>{rec}</li>"
+                    html += "</ul>"
+
+        other_treatment_keys = sorted([k for k in treatments.keys() if k not in treatment_categories and treatments[k]])
+        if other_treatment_keys:
+            displayed_treatments = True
+            html += f"<h4 style='color: #4a6b51; margin-bottom: 10px;'>➕ Other Recommendations:</h4>"
+            for key in other_treatment_keys:
+                 items = treatments[key]
+                 if not isinstance(items, list):
+                     items = [items]
+
+                 if items:
+                     # Use f-string for consistency
+                     html += f"<p style='margin-left: 10px; margin-bottom: 5px;'><strong>{key.replace('_', ' ').title()}:</strong></p>"
+                     html += "<ul style='list-style: none; padding-left: 5px; margin-bottom: 15px;'>"
+                     for rec in items:
+                          # Use f-string for consistency
+                          html += f"<li style='margin-bottom: 6px; padding-left: 25px; position: relative;'><span style='position: absolute; left: 0; color: #4caf50;'>✔️</span>{rec}</li>"
+                     html += "</ul>"
+
+        if not displayed_treatments:
+            html += "<p style='color: #777; font-style: italic;'>No specific treatment recommendations provided.</p>"
+        # The footer section is now inside the f-string, so {current_date} will be replaced
+        html += f"""
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align: center; margin-top: 30px; font-size: 0.9em; color: #888; border-top: 1px solid #eee; padding-top: 15px;">
+                <p style="margin-bottom: 5px;">🤖 Generated by Ayurvedic Diagnostic Assistant</p>
+                <p style="margin-bottom: 5px;">Made with ❤️ in India 🇮🇳</p>
+                <p>📅 Date: {current_date}</p>
+                <p style="margin-top: 10px; font-size: 0.85em; font-style: italic;">Reminder: This is an AI-generated analysis for informational purposes. Always consult a qualified Ayurvedic practitioner for professional medical advice.</p>
+            </div>
+        </div>
+        """ # --- HTML End ---
+
+        # Display the final HTML
+        display(HTML(html))
+
+    print('display function updated .....')
+
+    display function updated .....
+
+    from ipywidgets import widgets, Layout
+
+    # Create input widgets
+    symptoms_input = widgets.Textarea(
+        value='',
+        placeholder='Enter patient symptoms in detail...',
+        description='Symptoms:',
+        disabled=False,
+        layout=Layout(width='100%', height='150px')
+    )
+
+    analyze_button = widgets.Button(
+        description='Generate Diagnosis',
+        button_style='success',
+        tooltip='Click to analyze symptoms',
+        icon='stethoscope',
+        layout=Layout(width='200px')
+    )
+
+    clear_button = widgets.Button(
+        description='Clear',
+        button_style='warning',
+        tooltip='Clear input and results',
+        icon='eraser',
+        layout=Layout(width='100px')
+    )
+
+    button_container = widgets.HBox([analyze_button, clear_button], layout=Layout(justify_content='center'))
+
+    output_area = widgets.Output()
+    status_area = widgets.Output()
+
+    # Define button click behaviors
+    def on_analyze_button_clicked(b):
+        status_area.clear_output()
+        output_area.clear_output()
+        
+        with status_area:
+            if not symptoms_input.value.strip():
+                print("Please enter patient symptoms before generating a diagnosis.")
+                return
+            print("Analyzing symptoms... This may take a moment.")
+        
+        with output_area:
+            diagnosis = generate_ayurvedic_diagnosis(symptoms_input.value)
+            status_area.clear_output()
+            display_diagnosis(diagnosis)
+
+    def on_clear_button_clicked(b):
+        symptoms_input.value = ''
+        output_area.clear_output()
+        status_area.clear_output()
+
+    analyze_button.on_click(on_analyze_button_clicked)
+    clear_button.on_click(on_clear_button_clicked)
+
+    # Display the UI with improved styling
+    header = widgets.HTML(
+        value="<h1 style='text-align:center; color:#3a5a40;'>Ayurvedic Diagnostic Assistant</h1>"
+               "<p style='text-align:center;'>Enter the patient's symptoms in detail for a comprehensive Ayurvedic analysis</p>"
+    )
+
+    ui_container = widgets.VBox([
+        header,
+        widgets.HTML(value="<hr>"),
+        symptoms_input,
+        button_container,
+        status_area,
+        output_area
+    ], layout=Layout(width='100%', padding='20px'))
+
+    #display(ui_container)
+    print('Go to Step 10 & Run Final UI for the Results.....')
+
+    Go to Step 10 & Run Final UI for the Results.....
+
+    sample_cases = [
+        {   # Pitta-dominated case
+            "symptoms": "Frequent heartburn after meals, excessive body heat, reddish skin eruptions, irritability, and acidic taste in mouth. I sweat profusely and have intense hunger pangs.",
+            "expected_dosha": "Pitta"
+        },
+        {   # Vata-dominated case
+            "symptoms": "Chronic lower back pain, dry skin, irregular digestion, anxiety, and insomnia. Symptoms worsen in cold weather and improve with warmth.",
+            "expected_dosha": "Vata"
+        },
+        {   # Kapha-dominated case
+            "symptoms": "Persistent nasal congestion, lethargy after meals, weight gain despite normal diet, and stiff joints in the morning. Thick white tongue coating.",
+            "expected_dosha": "Kapha"
+        }
+    ]
+
+    def display_sample_case(case_number):
+        """Display and analyze a sample case from the predefined list"""
+        case_index = case_number - 1  # Convert to 0-based index
+
+        # Check if case_index is valid
+        if not 0 <= case_index < len(sample_cases):
+            with output_area:
+                 output_area.clear_output()
+                 display(Markdown(f"<p style='color:red;'>Error: Invalid sample case number {case_number}.</p>"))
+            return
+
+        with output_area: # Ensure output goes to the correct area
+            output_area.clear_output() # Clear previous output in this area
+
+            # Display sample case header
+            display(Markdown(f"## Analyzing Sample Case {case_number}"))
+
+            # Get the sample case details
+            case = sample_cases[case_index]
+            symptoms = case["symptoms"]
+            expected_dosha = case["expected_dosha"]
+
+            # Display symptoms
+            display(Markdown(f"**Symptoms:**\n\n```\n{symptoms}\n```")) # Use code block for better formatting
+
+            # Generate and display diagnosis
+            display(Markdown("\n**Generating Diagnosis...** *(This might take a moment)*"))
+            try:
+                # It's good practice to wrap external calls in try-except
+                diagnosis = generate_ayurvedic_diagnosis(symptoms)
+
+                # --- Rectification: Check for error in diagnosis ---
+                if "error" in diagnosis:
+                    display(Markdown("\n**Diagnosis Generation Failed:**"))
+                    display_diagnosis(diagnosis) # Use the display function to show the formatted error
+                    return # Stop processing this case
+                # --- End Rectification ---
+
+                # Display results comparison
+                display(Markdown("\n**Diagnosis Results:**"))
+                display_diagnosis(diagnosis) # Use the formatted display function
+
+                # Validate expected dosha
+                actual_dosha = diagnosis.get("dominant_dosha", "Unknown") # Safe access
+                display(Markdown(f"\n---\n**Validation:**\n- Expected Dominant Dosha: `{expected_dosha}`\n- Identified Dominant Dosha: `{actual_dosha}`")) # Use backticks
+
+                # Add visual validation indicator
+                if actual_dosha.strip().lower() == expected_dosha.strip().lower(): # Added strip() and lower() for robustness
+                    display(Markdown("<p style='color:green; font-weight:bold;'>✅ Correct dosha identification</p>"))
+                else:
+                    display(Markdown(f"<p style='color:red; font-weight:bold;'>❌ Dosha mismatch (Expected: {expected_dosha}, Got: {actual_dosha})</p>"))
+
+            except Exception as e:
+                 # Catch unexpected errors during generation or display
+                 display(Markdown(f"<p style='color:red;'>An unexpected error occurred: {e}</p>"))
+
+
+    # Create sample case buttons
+    sample_buttons = []
+    for i in range(len(sample_cases)):
+        btn = widgets.Button(
+            description=f'Case {i+1}',
+            tooltip=f'Test sample case {i+1} ({sample_cases[i]["expected_dosha"]})', # Add expected dosha to tooltip
+            layout=widgets.Layout(width='130px', margin='5px'), # Slightly wider
+            button_style='info' # Changed style for visual distinction
+        )
+        btn.case_number = i+1
+        # Use a lambda that captures the current button's case_number
+        btn.on_click(lambda b, num=i+1: display_sample_case(num))
+        sample_buttons.append(btn)
+
+    print('sample cases successfully embeded.....')
+
+    sample cases successfully embeded.....
+
+    input_panel = widgets.VBox([
+        widgets.HTML("<h2 style='color:#3a5a40;'>📝 Patient Symptoms Input</h2>"),
+        symptoms_input,
+        widgets.HBox([analyze_button, clear_button], layout=widgets.Layout(justify_content='center', margin='15px 0 0 0')) # Added margin
+    ], layout=widgets.Layout(width='90%', margin='15px auto')) # Adjusted width/margin
+
+    output_panel = widgets.VBox([
+        widgets.HTML("<h2 style='color:#3a5a40;'>📜 Diagnosis Results</h2>"),
+        status_area, # **** Added Status Area here ****
+        output_area
+    ], layout=widgets.Layout(width='95%', margin='15px auto')) # Adjusted width/margin
+
+    # Create tabbed interface
+    tab_layout = widgets.Layout(padding='15px') # Slightly reduced padding
+    tabs = widgets.Tab(children=[input_panel, output_panel], layout=tab_layout)
+    tabs.set_title(0, '⌨️ Symptom Entry')
+    tabs.set_title(1, '🧐 Diagnosis Review')
+
+    # Assemble complete interface
+    final_ui = widgets.VBox([
+        widgets.HTML("<h1 style='text-align:center; color:#3a5a40;'>🕉️ Ayurvedic Diagnostic Assistant ✨</h1>"),
+        widgets.HTML("<div style='text-align:center; margin-bottom:20px; font-size: 1.1em;'>"
+                     "🌿 Combining Ancient Wisdom with Modern AI 🤖</div>"),
+        tabs,
+        widgets.HTML("<hr style='margin: 25px auto; width: 80%; border-top: 1px dashed #ccc;'>"), # Added separator
+        widgets.HTML("<h3 style='margin-top:10px; text-align:center;'>🧪 Test System with Sample Cases:</h3>"),
+        widgets.HBox(sample_buttons, layout=widgets.Layout(justify_content='center', flex_flow='wrap', margin='10px 0')),
+        widgets.HTML("<div style='margin-top:25px; color:#666; font-size:0.9em; text-align:center; border-top: 1px solid #eee; padding-top: 15px;'>" # Adjusted styling
+                     "ℹ️ <strong>Note:</strong> This is a demonstration system. Always consult a qualified Ayurvedic practitioner for medical advice.</div>")
+    ], layout=widgets.Layout(width='95%', margin='20px auto', border='1px solid #ccc', padding='20px', border_radius='10px'))
+
+    print("✨ Final UI Ready! ✨")
+    display(final_ui)
+
+    ✨ Final UI Ready! ✨
+
+    {"model_id":"86c8b683b4e644b78ff4caf5a4dc519f","version_major":2,"version_minor":0}
