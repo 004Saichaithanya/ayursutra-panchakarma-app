@@ -12,18 +12,30 @@ app = FastAPI(
 # --- CORS (Cross-Origin Resource Sharing) Middleware ---
 # This allows your React frontend to make requests to this backend.
 # Update 'origins' to your frontend's URL in production.
-origins = [
-    "http://localhost:3000", # Your React app's default address
-    "http://localhost:5173", # Common Vite address
-    "http://localhost:5000", # <-- ADD THIS LINE
-    "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev", # Replit domain
-    "*" # Allow all origins for development
-]
+import os
+
+# Configure CORS origins based on environment
+if os.getenv("ENVIRONMENT", "development") == "production":
+    # Production: Use specific domains
+    origins = [
+        "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev",
+        os.getenv("FRONTEND_URL", "")
+    ]
+    allow_credentials = True
+else:
+    # Development: Allow localhost variants but not wildcard with credentials
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:5173", 
+        "http://localhost:5000",
+        "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev"
+    ]
+    allow_credentials = False
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"], # Allows all methods (GET, POST, etc.)
     allow_headers=["*"], # Allows all headers
 )

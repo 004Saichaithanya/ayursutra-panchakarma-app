@@ -15,7 +15,11 @@ import {
 } from 'lucide-react';
 import { Feedback } from './feedback';
 
-const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8000';
+// Configure API base URL based on environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.DEV 
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : `${window.location.protocol}//${window.location.hostname}`);
 
 const getDummySessions = (patientId) => [
     { therapy: 'Abhyanga Massage', date: '2025-09-30', time: '14:00', practitioner: 'Dr. Kamal Raj', status: 'confirmed', patientId, notes: 'Follow-up massage session.' },
