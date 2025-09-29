@@ -408,14 +408,6 @@ export function Login() {
                 </div>
               </form>
 
-              {/* Demo Credentials */}
-              <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <p className="text-sm font-medium text-emerald-900 mb-2">Demo Credentials:</p>
-                <div className="text-xs text-emerald-700 space-y-1">
-                  <p><strong>Patient:</strong> priya@demo.com / demo123</p>
-                  <p><strong>Practitioner:</strong> kamal@demo.com / demo123</p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
