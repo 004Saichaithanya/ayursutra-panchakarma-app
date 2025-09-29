@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getUserRole() {
+      // Enforce custom claims only - no fallback to prevent privilege escalation
+      return request.auth.token.role;
+    }
+    
+    function isPatient() {
+      return getUserRole() == 'patient';
+    }
+    
+    function isPractitioner() {
+      return getUserRole() == 'practitioner';
+    }
+    
+    // User index collection - minimal data, users can only access their own
+    match /users/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Create user index (during signup/migration) - enforce role matching claims
+      allow create: if isAuthenticated() && isOwner(userId)
+                    && request.resource.data.keys().hasAll(['uid', 'email', 'name', 'userType'])
+                    && request.resource.data.uid == userId
+                    && request.resource.data.userType == request.auth.token.role;
+      
+      // Update user index (name changes only)
+      allow update: if isAuthenticated() && isOwner(userId)
+                    && !('uid' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('email' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('userType' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('createdAt' in request.resource.data.diff(resource.data).affectedKeys());
+    }
+    
+    // Patient-specific data collection
+    match /patients/{patientId} {
+      // Patients can read their own profile
+      allow read: if isAuthenticated() && isPatient() && isOwner(patientId);
+      
+      // Patients can create their own profile
+      allow create: if isAuthenticated() && isPatient() && isOwner(patientId);
+      
+      // Patients can update their own profile (except allowedPractitionerIds)
+      allow update: if isAuthenticated() && isPatient() && isOwner(patientId)
+                    && !('allowedPractitionerIds' in request.resource.data.diff(resource.data).affectedKeys());
+      
+      // Practitioners can read patient profiles they're assigned to
+      allow read: if isAuthenticated() && isPractitioner() 
+                  && request.auth.uid in resource.data.allowedPractitionerIds;
+                  
+      // Practitioners can update assigned patients (limited fields)
+      allow update: if isAuthenticated() && isPractitioner() 
+                    && request.auth.uid in resource.data.allowedPractitionerIds
+                    && !('allowedPractitionerIds' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('uid' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('email' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('createdAt' in request.resource.data.diff(resource.data).affectedKeys());
+    }
+    
+    // Practitioner-specific data collection
+    match /practitioners/{practitionerId} {
+      // Practitioners can read their own profile
+      allow read: if isAuthenticated() && isPractitioner() && isOwner(practitionerId);
+      
+      // Practitioners can create their own profile
+      allow create: if isAuthenticated() && isPractitioner() && isOwner(practitionerId);
+      
+      // Practitioners can update their own profile
+      allow update: if isAuthenticated() && isPractitioner() && isOwner(practitionerId);
+      
+      // Patients can read basic info of practitioners they're assigned to
+      allow read: if isAuthenticated() && isPatient() 
+                  && exists(/databases/$(database)/documents/patients/$(request.auth.uid)) 
+                  && practitionerId in get(/databases/$(database)/documents/patients/$(request.auth.uid)).data.allowedPractitionerIds;
+    }
+    
+    // Sessions collection - role-based access
+    match /sessions/{sessionId} {
+      // Patients can read/update sessions where they are the patient
+      allow read: if isAuthenticated() && isPatient() 
+                  && request.auth.uid == resource.data.patientId;
+      allow update: if isAuthenticated() && isPatient() 
+                    && request.auth.uid == resource.data.patientId;
+      
+      // Practitioners can read/update sessions where they are the practitioner
+      allow read: if isAuthenticated() && isPractitioner() 
+                  && request.auth.uid == resource.data.practitionerId;
+      allow update: if isAuthenticated() && isPractitioner() 
+                    && request.auth.uid == resource.data.practitionerId;
+                         
+      // Allow creation by either patient or practitioner involved
+      allow create: if isAuthenticated() 
+                    && (request.auth.uid == request.resource.data.patientId 
+                        || request.auth.uid == request.resource.data.practitionerId);
+    }
+    
+    // Notifications collection - user can only access their own
+    match /notifications/{notificationId} {
+      // Read and update existing notifications
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId);
+      
+      // Create new notifications
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Feedback collection - role-based access
+    match /feedback/{feedbackId} {
+      // Patients can read their own feedback
+      allow read: if isAuthenticated() && isPatient() 
+                  && isOwner(resource.data.patientId);
+      
+      // Patients can update their own feedback
+      allow update: if isAuthenticated() && isPatient() 
+                    && isOwner(resource.data.patientId);
+      
+      // Practitioners can read feedback for their patients
+      allow read: if isAuthenticated() && isPractitioner() 
+                  && request.auth.uid == resource.data.practitionerId;
+                  
+      // Allow creation by patients
+      allow create: if isAuthenticated() && isPatient() 
+                    && isOwner(request.resource.data.patientId);
+    }
+    
+    // Messages collection - role-based access
+    match /messages/{messageId} {
+      // Users can read messages they sent or received
+      allow read: if isAuthenticated() 
+                  && (isOwner(resource.data.senderId) 
+                      || isOwner(resource.data.receiverId));
+      
+      // Users can update messages they sent
+      allow update: if isAuthenticated() && isOwner(resource.data.senderId);
+      
+      // Allow creation if user is sender
+      allow create: if isAuthenticated() && isOwner(request.resource.data.senderId);
+    }
+    
+    // Progress collection - role-based access
+    match /progress/{progressId} {
+      // Patients can read their own progress
+      allow read: if isAuthenticated() && isPatient() 
+                  && isOwner(resource.data.patientId);
+      
+      // Practitioners can read progress for assigned patients
+      allow read: if isAuthenticated() && isPractitioner() 
+                  && request.auth.uid == resource.data.practitionerId;
+      
+      // Practitioners can update progress for assigned patients
+      allow update: if isAuthenticated() && isPractitioner() 
+                    && request.auth.uid == resource.data.practitionerId;
+                          
+      // Allow creation by practitioners
+      allow create: if isAuthenticated() && isPractitioner() 
+                    && isOwner(request.resource.data.practitionerId);
+    }
+    
+    // Notes collection - role-based access
+    match /notes/{noteId} {
+      // Practitioners can read notes they created
+      allow read: if isAuthenticated() && isPractitioner() 
+                  && isOwner(resource.data.practitionerId);
+      
+      // Practitioners can update notes they created
+      allow update: if isAuthenticated() && isPractitioner() 
+                    && isOwner(resource.data.practitionerId);
+      
+      // Practitioners can create notes
+      allow create: if isAuthenticated() && isPractitioner() 
+                    && isOwner(request.resource.data.practitionerId);
+      
+      // Patients can read notes about them
+      allow read: if isAuthenticated() && isPatient() 
+                  && isOwner(resource.data.patientId);
+    }
+    
+    // Analytics collection - practitioners only
+    match /analytics/{analyticsId} {
+      allow read: if isAuthenticated() && isPractitioner();
+      allow create: if isAuthenticated() && isPractitioner();
+      allow update: if isAuthenticated() && isPractitioner();
+      allow delete: if isAuthenticated() && isPractitioner();
+    }
+    
+    // Recipes collection - read-only for all authenticated users
+    match /recipes/{recipeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isPractitioner();
+      allow update: if isAuthenticated() && isPractitioner();
+      allow delete: if isAuthenticated() && isPractitioner();
+    }
+    
+    // Deny all other requests
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

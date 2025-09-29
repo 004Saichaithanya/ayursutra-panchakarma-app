@@ -1,0 +1,69 @@
+1. Folder Structure
+
+The project must have two separate folders for clear separation of concerns:
+
+project-root/
+  frontend/   → React + Vite + Tailwind CSS
+  backend/    → FastAPI (Python)
+
+
+frontend/ handles UI and user interactions.
+
+backend/ handles API requests, Firebase integration, and database operations.
+
+Unnecessary files should be removed, and the structure must be clean, minimal, and deployable.
+
+2. Responsibilities
+🟢 Frontend (frontend/)
+
+Built with React (Vite) and Tailwind CSS.
+
+Handles user-facing pages (login, signup, dashboard).
+
+Authenticates users via Firebase Authentication (email/password or other providers).
+
+Sends authenticated requests to the FastAPI backend with Firebase token.
+
+Displays patients and practitioners list/details fetched from backend APIs.
+
+🔵 Backend (backend/)
+
+Built with FastAPI (Python).
+
+Exposes REST APIs for authentication verification and database operations.
+
+Must verify Firebase JWT tokens for secure requests.
+
+Handles saving and retrieving patient and practitioner details in Firebase Firestore Database.
+
+Example API routes:
+
+POST /signup → Register new user and store basic profile data in Firestore
+
+POST /login → Verify Firebase token from frontend
+
+POST /patients → Add patient details to Firestore
+
+GET /patients → Fetch all patients from Firestore
+
+POST /practitioners → Add practitioner details to Firestore
+
+GET /practitioners → Fetch all practitioners from Firestore
+
+3. Deployment
+
+Frontend: Deployable on Vercel or Netlify.
+
+Backend: Deployable on Render, Railway, Fly.io, or any FastAPI-supported service.
+
+4. Deliverables
+
+Clean frontend + backend folder structure with minimal boilerplate.
+
+Firebase integration for authentication and Firestore database.
+
+FastAPI backend APIs for handling patients & practitioners (save + fetch).
+
+React pages: Login, Signup, Dashboard showing lists from backend.
+
+✅ Final Goal: A clean full-stack project where the frontend handles Firebase authentication, while the backend manages Firebase Firestore database (patients & practitioners) and exposes APIs for the frontend to consume.
