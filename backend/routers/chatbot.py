@@ -14,8 +14,21 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 
-# Initialize Gemini client
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# Initialize Gemini client - will be set up when needed
+client = None
+
+def get_gemini_client():
+    """Get or initialize Gemini client"""
+    global client
+    if client is None:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=503, 
+                detail="AI service temporarily unavailable. API key not configured."
+            )
+        client = genai.Client(api_key=api_key)
+    return client
 
 # Create router
 router = APIRouter(
@@ -33,6 +46,7 @@ class ChatResponse(BaseModel):
     sources: List[str] = []
     formatted_html: Optional[str] = None
     plain_text: Optional[str] = None
+
 
 # Comprehensive Ayurvedic Knowledge Base
 AYURVEDIC_KNOWLEDGE = [
@@ -403,7 +417,10 @@ USER QUESTION: {query}
 Please provide a detailed Ayurvedic perspective addressing their question, including relevant dosha considerations, practical recommendations, and any important precautions. Structure your response clearly with separate paragraphs for different aspects."""
 
     try:
-        response = client.models.generate_content(
+        # Get the Gemini client
+        gemini_client = get_gemini_client()
+        
+        response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[
                 types.Content(role="user", parts=[types.Part(text=prompt)])
@@ -471,3 +488,4 @@ async def chatbot_health():
         "knowledge_base_entries": len(AYURVEDIC_KNOWLEDGE),
         "api_key_configured": bool(os.environ.get("GEMINI_API_KEY"))
     }
+
