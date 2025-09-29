@@ -23,6 +23,12 @@ import {
   Droplets
 } from 'lucide-react';
 
+// Configure API base URL based on environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.DEV 
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : `${window.location.protocol}//${window.location.hostname}`);
+
 /**
  * Ayurveda Chatbot Component
  * @param {Object} props - Component props
@@ -90,7 +96,7 @@ export function AyurvedaChatbot({ isVisible = true }) {
     }
   }, [isOpen, messages.length]);
 
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
     if (!text.trim()) return;
 
     const userMessage = {
@@ -104,23 +110,72 @@ export function AyurvedaChatbot({ isVisible = true }) {
     setInputMessage('');
     setIsTyping(true);
 
-    // Simulate bot thinking time
-    setTimeout(() => {
-      const botResponse = generateBotResponse(text);
+    try {
+      // Call the AI backend
+      const response = await fetch(`${API_BASE_URL}/chatbot/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: text,
+          conversation_history: messages.map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text
+          })).slice(-8) // Send last 8 messages for context
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
+      
       const botMessage = {
         id: (Date.now() + 1).toString(),
-        text: botResponse.text,
+        text: data.response,
         sender: 'bot',
         timestamp: new Date(),
-        suggestions: botResponse.suggestions
+        sources: data.sources || [],
+        suggestions: extractSuggestions(data.response) // Extract suggestions from AI response
       };
 
       setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      // Fallback to basic response
+      const fallbackResponse = generateFallbackResponse(text);
+      const botMessage = {
+        id: (Date.now() + 1).toString(),
+        text: fallbackResponse.text,
+        sender: 'bot',
+        timestamp: new Date(),
+        suggestions: fallbackResponse.suggestions
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const generateBotResponse = (userInput) => {
+  const extractSuggestions = (aiResponse) => {
+    // Extract potential follow-up questions from AI response
+    // This is a simple heuristic - could be improved
+    const commonSuggestions = [
+      "Tell me more about my dosha",
+      "What foods should I avoid?", 
+      "How can I improve my sleep?",
+      "Daily routine recommendations",
+      "Stress management tips",
+      "Pre-treatment preparation"
+    ];
+    
+    // Return a few relevant suggestions based on response content
+    return commonSuggestions.slice(0, 3);
+  };
+
+  const generateFallbackResponse = (userInput) => {
     const input = userInput.toLowerCase();
     
     if (input.includes('diet') || input.includes('food') || input.includes('eat') || input.includes('dosha')) {
@@ -142,7 +197,7 @@ export function AyurvedaChatbot({ isVisible = true }) {
       return botResponses.routine;
     } else {
       return {
-        text: "I understand you're looking for guidance. I can help you with:\n\n🍃 Diet & nutrition for your dosha\n🧘 Pre & post-treatment care\n🌅 Daily lifestyle routines\n🧠 Stress management techniques\n\nWhat specific area would you like to explore?",
+        text: "I apologize, but I'm having trouble connecting to my AI assistant right now. However, I can still help with basic guidance:\n\n🍃 Diet & nutrition for your dosha\n🧘 Pre & post-treatment care\n🌅 Daily lifestyle routines\n🧠 Stress management techniques\n\nWhat specific area would you like to explore?",
         suggestions: ["Diet guidance", "Treatment preparation", "Daily routine", "Stress relief"]
       };
     }

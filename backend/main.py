@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import sessions, practitioners
+from routers import sessions, practitioners, chatbot
 
 # Initialize the FastAPI app
 app = FastAPI(
@@ -44,6 +44,7 @@ app.add_middleware(
 # This links the endpoints from routers/sessions.py to the main app
 app.include_router(sessions.router)
 app.include_router(practitioners.router)
+app.include_router(chatbot.router)
 
 # --- Root Endpoint ---
 @app.get("/", tags=["Root"])
