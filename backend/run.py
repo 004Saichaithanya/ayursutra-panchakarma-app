@@ -3,12 +3,11 @@
 Entry point to run the FastAPI backend server
 """
 import uvicorn
-from main import app
 
 if __name__ == "__main__":
     # Run the backend on port 8000 (frontend runs on 5000)
     uvicorn.run(
-        app,
+        "main:app",  # Import string for reload to work
         host="127.0.0.1",  # Backend uses localhost
         port=8000,
         reload=True,
