@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Feedback } from './feedback';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8000';
 
 const getDummySessions = (patientId) => [
     { therapy: 'Abhyanga Massage', date: '2025-09-30', time: '14:00', practitioner: 'Dr. Kamal Raj', status: 'confirmed', patientId, notes: 'Follow-up massage session.' },

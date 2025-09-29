@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import sessions
 from routers import sessions, practitioners
 
 # Initialize the FastAPI app
@@ -17,6 +16,8 @@ origins = [
     "http://localhost:3000", # Your React app's default address
     "http://localhost:5173", # Common Vite address
     "http://localhost:5000", # <-- ADD THIS LINE
+    "https://cafa6d14-ba1b-415c-8f58-dd050d713848-00-1uievvy1c9qtv.pike.replit.dev", # Replit domain
+    "*" # Allow all origins for development
 ]
 
 app.add_middleware(

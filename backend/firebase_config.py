@@ -9,7 +9,7 @@ load_dotenv()
 # Get the path to the credentials file from the environment variable
 cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 
-if not os.path.exists(cred_path):
+if cred_path is None or not os.path.exists(cred_path):
     raise FileNotFoundError(f"Firebase credentials file not found at path: {cred_path}")
 
 # Initialize the app with a service account, granting admin privileges
