@@ -9,14 +9,18 @@ const hasFirebaseConfig = import.meta.env.VITE_FIREBASE_API_KEY &&
                           import.meta.env.VITE_FIREBASE_PROJECT_ID && 
                           import.meta.env.VITE_FIREBASE_APP_ID;
 
-// Firebase configuration - use environment variables if available, otherwise use demo/placeholder values
+// Firebase configuration - requires all environment variables to be set
+if (!hasFirebaseConfig) {
+  throw new Error('Firebase configuration missing. Required environment variables: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID');
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project"}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project"}.firebasestorage.app`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "demo-app-id"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 let app, auth, db, storage;
@@ -30,13 +34,7 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
   
-  // Log configuration status
-  if (!hasFirebaseConfig) {
-    console.warn('⚠️ Firebase not configured: Using demo credentials. Please set up Firebase environment variables for full functionality.');
-    console.warn('Required environment variables: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID');
-  } else {
-    console.log('✅ Firebase configured successfully');
-  }
+  console.log('✅ Firebase configured successfully');
 } catch (error) {
   console.error('Firebase initialization error:', error);
   // Provide fallback exports to prevent app crashes
