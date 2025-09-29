@@ -47,14 +47,7 @@ try:
         firebase_admin.initialize_app(cred)
         print("✅ Firebase initialized with credentials file successfully.")
     else:
-        # Use development mode with project ID if available
-        if firebase_project_id:
-            print(f"🔧 Initializing Firebase in development mode with project ID: {firebase_project_id}")
-            firebase_admin.initialize_app(options={'projectId': firebase_project_id})
-        else:
-            print("⚠️ No Firebase credentials found. Using development mode.")
-            firebase_admin.initialize_app()
-        print("✅ Firebase initialized in development mode.")
+        raise Exception("Firebase credentials are required. Please provide either environment variables (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL) or set FIREBASE_CREDENTIALS_PATH to a valid credentials file.")
     
     # Get a client to the Firestore database
     db = firestore.client()
@@ -63,48 +56,5 @@ try:
     sessions_collection = db.collection('sessions')
     
 except Exception as e:
-    print(f"⚠️ Firebase initialization failed: {e}")
-    print("Running in mock mode - API endpoints will work but data won't persist")
-    
-    # Create a mock collection for development
-    class MockCollection:
-        def add(self, data):
-            # Return mock document reference
-            class MockDocRef:
-                def __init__(self):
-                    import uuid
-                    self.id = str(uuid.uuid4())
-            return None, MockDocRef()
-        
-        def where(self, field, op, value):
-            return MockQueryResult()
-        
-        def document(self, doc_id):
-            return MockDocument()
-        
-        def stream(self):
-            return []
-    
-    class MockQueryResult:
-        def stream(self):
-            return []
-    
-    class MockDocument:
-        def get(self):
-            class MockDocSnapshot:
-                exists = False
-            return MockDocSnapshot()
-        
-        def update(self, data):
-            pass
-        
-        def delete(self):
-            pass
-    
-    class MockDatabase:
-        def collection(self, name):
-            return MockCollection()
-    
-    # Set mock instances
-    db = MockDatabase()
-    sessions_collection = MockCollection()
+    print(f"❌ Firebase initialization failed: {e}")
+    raise e
